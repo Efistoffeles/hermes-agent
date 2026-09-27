@@ -633,19 +633,23 @@ def _migrate_to_46(results: Dict[str, Any], quiet: bool) -> None:
 
 def _migrate_to_48(results: Dict[str, Any], quiet: bool) -> None:
     # 47 → 48: the container sandbox default gains a display stack (nousresearch/hermes-sandbox:
-    # desktop) so Bot Screen / computer_use / the browser run inside the sandbox. Only a saved
-    # value still equal to the OLD default moves; any image the user pinned themselves stays.
+    # desktop) so Bot Screen / computer_use / the browser run inside the sandbox. A saved value
+    # still equal to the OLD default is the template copied, not a choice: the key is DROPPED so
+    # the file follows the default. It is not rewritten to the new image, because a written image
+    # is a pin and a pin recreates a persisted Docker container without asking; unpinned, the
+    # runtime keeps an existing sandbox and the CLI / Screen pane ask first. A pinned image stays.
     from hermes_cli.config_defaults import DEFAULT_SANDBOX_IMAGE, LEGACY_SANDBOX_IMAGE
-    for key, old, new in (
-        ("docker_image", LEGACY_SANDBOX_IMAGE, DEFAULT_SANDBOX_IMAGE),
-        ("modal_image", LEGACY_SANDBOX_IMAGE, DEFAULT_SANDBOX_IMAGE),
-        ("daytona_image", LEGACY_SANDBOX_IMAGE, DEFAULT_SANDBOX_IMAGE),
-        ("singularity_image", f"docker://{LEGACY_SANDBOX_IMAGE}", f"docker://{DEFAULT_SANDBOX_IMAGE}"),
+    for key, old in (
+        ("docker_image", LEGACY_SANDBOX_IMAGE),
+        ("modal_image", LEGACY_SANDBOX_IMAGE),
+        ("daytona_image", LEGACY_SANDBOX_IMAGE),
+        ("singularity_image", f"docker://{LEGACY_SANDBOX_IMAGE}"),
     ):
         _rewrite_stale_default(
-            section="terminal", key=key, old=old, new=new,
-            added=f"terminal.{key} → {new}",
-            message=f"  ✓ terminal.{key}: sandbox image now {new} (Bot Screen inside the sandbox)",
+            section="terminal", key=key, old=old, new=None,
+            added=f"terminal.{key} unset (follows the default, {DEFAULT_SANDBOX_IMAGE})",
+            message=f"  ✓ terminal.{key}: was the old default; now follows the default sandbox image "
+                    f"({DEFAULT_SANDBOX_IMAGE})",
         )(results, quiet)
 
 
@@ -783,7 +787,7 @@ MIGRATIONS: Tuple[Tuple[int, Callable[[Dict[str, Any], bool], None]], ...] = (
             "  ✓ Removed compression.threshold_tokens: 256000 — the old default. Compaction "
             "follows compression.threshold (50% of the window) again. Set threshold_tokens "
             "to a token count to cap it on purpose."))),
-    # 47 → 48: stale default sandbox image → nousresearch/hermes-sandbox:desktop (see _migrate_to_48).
+    # 47 → 48: a saved old-default sandbox image is dropped so the file follows the new default (see _migrate_to_48).
     (48, _migrate_to_48),
 )
 
