@@ -58,7 +58,7 @@ def _marker() -> Path:
 
 def _read_marker() -> Dict[str, Any]:
     try:
-        return json.loads(_marker().read_text(encoding="utf-8"))
+        return json.loads(_marker().read_text(encoding="utf-8-sig"))
     except (OSError, ValueError):
         return {}
 
