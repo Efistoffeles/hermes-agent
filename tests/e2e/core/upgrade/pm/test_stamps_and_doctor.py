@@ -7,12 +7,12 @@ is not the installer's. Then:
   console script (``<gen>/venv/bin/hermes``) is on PATH for every child a Hermes process spawns
   (``activate_dependencies`` prepends that ``bin``), so the agent's terminal, workers and scripts
   resolve ``hermes`` to it. It must report the checkout as the install and be able to check for
-  updates; it reports the workspace copy instead (gated on #122425 and #122627);
+  updates (``update --check`` gated on #122627);
 * ``hermes doctor`` on that healthy install reports nothing wrong with the command installation
   (#124050 is the false positive class) and ``hermes pm status`` reports the update as a success;
 * real drift is caught and healed: a user uninstalls fastapi (the ``web`` extra the dashboard
-  imports) from the selected environment. ``hermes doctor`` must say so (gated on #124214: it
-  reports nothing), and ``hermes pm repair`` must bring the dashboard's import back;
+  imports) from the selected environment. ``hermes doctor`` must say so, and ``hermes pm repair``
+  must bring the dashboard's import back;
 * a dependency update that cannot resolve fails loudly, ``hermes pm status`` reports it as failed,
   and the previous generation stays selected and working.
 """
@@ -94,11 +94,9 @@ def test_managed_env_hermes_reports_the_checkout_as_the_install(updated):
     cp = P.ok(sb.run([_venv_hermes(sb), "--version"], timeout=300))
     shown = re.search(r"Install directory: (.+)", cp.stdout)
     method = re.search(r"Install method: (.+)", cp.stdout)
-    with known_failure(r"managed-environment hermes reports install .*/environments/[0-9a-f]+/workspace",
-                       "gated on #122425: the workspace copy carries no install metadata"):
-        assert shown and shown.group(1).strip() == str(sb.checkout) and method and method.group(1).strip() == "git", (
-            f"managed-environment hermes reports install {shown and shown.group(1)} "
-            f"(method {method and method.group(1)}), not the checkout {sb.checkout}:\n{cp.stdout}")
+    assert shown and shown.group(1).strip() == str(sb.checkout) and method and method.group(1).strip() == "git", (
+        f"managed-environment hermes reports install {shown and shown.group(1)} "
+        f"(method {method and method.group(1)}), not the checkout {sb.checkout}:\n{cp.stdout}")
 
 
 def test_doctor_on_a_healthy_pm_install_reports_no_command_installation_problem(updated):
@@ -139,10 +137,8 @@ def test_doctor_reports_web_extra_drift(drifted):
     flagged = [line for line in cp.stdout.splitlines()
                if re.search(r"(?i)fastapi|dashboard|web extra|\bweb\b.*(missing|not installed)", line)
                and line.lstrip().startswith(("⚠", "✗"))]
-    with known_failure(r"hermes doctor is silent about fastapi missing from the selected environment",
-                       "gated on #124214: web-extra dependency drift is invisible to doctor"):
-        assert flagged, ("hermes doctor is silent about fastapi missing from the selected environment "
-                         f"(rc={cp.returncode})\n" + I.describe(cp))
+    assert flagged, ("hermes doctor is silent about fastapi missing from the selected environment "
+                     f"(rc={cp.returncode})\n" + I.describe(cp))
 
 
 def test_pm_repair_heals_the_drift(drifted):
