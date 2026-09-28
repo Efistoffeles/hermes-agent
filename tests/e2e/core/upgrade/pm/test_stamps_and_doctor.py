@@ -7,7 +7,7 @@ is not the installer's. Then:
   console script (``<gen>/venv/bin/hermes``) is on PATH for every child a Hermes process spawns
   (``activate_dependencies`` prepends that ``bin``), so the agent's terminal, workers and scripts
   resolve ``hermes`` to it. It must report the checkout as the install and be able to check for
-  updates (``update --check`` gated on #122627);
+  updates;
 * ``hermes doctor`` on that healthy install reports nothing wrong with the command installation
   (#124050 is the false positive class) and ``hermes pm status`` reports the update as a success;
 * real drift is caught and healed: a user uninstalls fastapi (the ``web`` extra the dashboard
@@ -26,7 +26,6 @@ from pathlib import Path
 
 import pytest
 
-from tests.e2e.core._pending_fixes import known_failure
 from tests.e2e.core.upgrade import _helpers as H
 from tests.e2e.core.upgrade import _install_helpers as I
 from tests.e2e.core.upgrade.pm import _pm as P
@@ -82,11 +81,9 @@ def test_managed_env_hermes_can_check_for_updates(updated):
     exe = _venv_hermes(sb)
     assert Path(exe).is_file(), f"harness: selected generation ships no hermes console script: {exe}"
     cp = sb.run([exe, "update", "--check"], timeout=300)
-    with known_failure(r"`hermes update --check` from the managed environment: .*Not a git repository",
-                       "gated on #122627: PROJECT_ROOT resolves to the PM workspace copy"):
-        assert cp.returncode == 0 and "Not a git repository" not in cp.stdout + cp.stderr, (
-            "`hermes update --check` from the managed environment: " + (cp.stdout + cp.stderr).strip()[-400:]
-            + "\n" + I.describe(cp))
+    assert cp.returncode == 0 and "Not a git repository" not in cp.stdout + cp.stderr, (
+        "`hermes update --check` from the managed environment: " + (cp.stdout + cp.stderr).strip()[-400:]
+        + "\n" + I.describe(cp))
 
 
 def test_managed_env_hermes_reports_the_checkout_as_the_install(updated):
