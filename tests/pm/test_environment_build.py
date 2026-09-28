@@ -787,3 +787,23 @@ def test_live_apply_keeps_selection_on_failed_union(locked_project, tmp_path, mo
     assert set(generations.iterdir()) == prior_generations
     assert (source / "uv.lock").read_bytes() == source_lock
     assert env == original_env
+
+
+def test_committed_generation_interpreter_imports_the_checkout(locked_project, tmp_path, monkeypatch):
+    """<gen>/venv/bin/hermes is on every child's PATH: it must run the checkout's code, not the
+    generation's build snapshot, which a code-only update never refreshes (#122425)."""
+    import importlib
+    from pm import paths
+    from pm.environments import selected_venv, venv_python
+
+    source, uv, env = locked_project
+    monkeypatch.setattr(paths, "repo_root", lambda: source)
+    monkeypatch.setattr("pm._uv._toolchain", lambda **kw: (uv, Path(sys.executable)))
+    engine = importlib.import_module("pm.install")
+    monkeypatch.setattr(engine, "lazy_installs_allowed", lambda: True)
+    engine.sync_venv(["chosen"], plugins=Members([]), explicit=True)
+    (source / "checkout_code.py").write_text("", encoding="utf-8")  # a code-only update
+    engine.sync_venv(["chosen"], plugins=Members([]), explicit=True)
+    shown = _run([str(venv_python(selected_venv(source))), "-I", "-c",
+                  "import checkout_code; print(checkout_code.__file__)"], cwd=tmp_path, env=env)
+    assert Path(shown).resolve() == (source / "checkout_code.py").resolve()
