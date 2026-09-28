@@ -444,6 +444,9 @@ test('Windows source settle bypasses the generated cmd command line', (): void =
     fs.writeFileSync(path.join(bin, 'hermes.cmd'), `@"${python}" -I -c "import base64; exec(base64.b64decode('eA=='))" %*\r\n`)
     const prepareLaunch = path.join(root, 'hermes_cli', 'venv_sync.py')
     fs.mkdirSync(path.dirname(prepareLaunch), { recursive: true })
+    // A real checkout's hermes_cli is a regular package; a namespace stub would lose to the
+    // checkout the runner's PM venv puts on sys.path.
+    fs.writeFileSync(path.join(path.dirname(prepareLaunch), '__init__.py'), '')
     fs.writeFileSync(prepareLaunch, `from pathlib import Path\ndef prepare_launch(root, args):\n    Path(${JSON.stringify(witness)}).write_text(str(root) + '\\n' + '\\n'.join(args))\n`)
     fs.writeFileSync(path.join(bin, 'hermes.exe'), 'locked historical launcher')
     const invocation = sourceRuntimeSettleCommand(root, process.env, 'win32')
