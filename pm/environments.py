@@ -170,6 +170,21 @@ def committed_venv(project_root: Path) -> Path | None:
     return _recorded_venv(project_root) or payload_venv(project_root)
 
 
+def import_checkout_from_committed_venv(project_root: Path) -> None:
+    """Make the committed generation's own interpreter run the checkout, not its build snapshot.
+
+    A generation installs its ``workspace/`` snapshot editable, so ``<gen>/venv/bin/hermes`` (on
+    PATH for every child ``activate_dependencies`` spawns) imported that copy: stale after a
+    code-only update, without the checkout's install stamp or ``.git`` (#122425). Launchers
+    already put the checkout first; a ``.pth`` path entry gives the venv's own entry points the
+    same code, since ``sys.path`` is searched before the editable finder on ``sys.meta_path``.
+    """
+    environment = _recorded_venv(project_root)
+    if environment is not None and site_packages(environment).is_dir():
+        pth = site_packages(environment) / "hermes_checkout.pth"
+        pth.write_text(f"{Path(project_root).resolve()}\n", encoding="utf-8")
+
+
 def _recorded_venv(project_root: Path) -> Path | None:
     path = runtime_facts_path(project_root)
     try:

@@ -714,6 +714,9 @@ def _commit_selection(package, facts: Facts, change, *, enabled: list[str], stam
             facts.record_state("venv", stamp, enabled, **result)
         if change is not None:
             finish_publication(paths.repo_root())
+        # Also on a no-op sync: a code-only update keeps the generation it already had.
+        from pm.environments import import_checkout_from_committed_venv
+        import_checkout_from_committed_venv(paths.repo_root())
         receipt.record_venv_rebuild(not current, "already in sync" if current else "")
     except BaseException:
         recover_publication(paths.repo_root())
